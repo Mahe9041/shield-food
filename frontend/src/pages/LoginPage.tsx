@@ -39,10 +39,10 @@ export default function LoginPage() {
       await login(email, password);
       toast.success('Welcome to SHIELD Food!');
       navigate('/');
-    } catch (err) {
-      // Show the error message from NestJS
-      toast.error(err.response?.data?.error || 'Login failed');
-    } finally {
+    } catch (err: unknown) {
+  const error = err as { response?: { data?: { error?: string } } };
+  toast.error(error.response?.data?.error || 'Checkout failed');
+} finally {
       setLoading(false);
     }
   };

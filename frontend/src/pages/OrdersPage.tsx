@@ -32,9 +32,10 @@ export default function OrdersPage() {
       toast.success('Order cancelled');
       // Refresh the list
       fetchOrders();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to cancel');
-    }
+    } catch (err: unknown) {
+  const error = err as { response?: { data?: { error?: string } } };
+  toast.error(error.response?.data?.error || 'Checkout failed');
+}
   };
 
   // Describes what the user is seeing based on their role

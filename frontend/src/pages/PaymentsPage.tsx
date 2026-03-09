@@ -41,9 +41,10 @@ export default function PaymentsPage() {
       toast.success('Payment method updated');
       setEditing(null);
       fetchPayments();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Update failed');
-    }
+    } catch (err: unknown) {
+  const error = err as { response?: { data?: { error?: string } } };
+  toast.error(error.response?.data?.error || 'Checkout failed');
+}
   };
 
   // Access denied screen for non-admins
