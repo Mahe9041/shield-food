@@ -58,9 +58,10 @@ export default function CartPage() {
       toast.success('Order placed successfully! 🎉');
       navigate('/orders');
 
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Checkout failed');
-    } finally {
+    } catch (err: unknown) {
+  const error = err as { response?: { data?: { error?: string } } };
+  toast.error(error.response?.data?.error || 'Checkout failed');
+}finally {
       setLoading(false);
     }
   };

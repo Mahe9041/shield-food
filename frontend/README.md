@@ -1,73 +1,164 @@
-# React + TypeScript + Vite
+# 🛡️ SHIELD Food — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> React TypeScript SPA built with Vite, featuring context-based auth, cart state, and frontend RBAC mirroring the backend permission system.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🗂️ Project Structure
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── types/
+│   └── index.ts                  # Shared TypeScript interfaces (User, Order, Restaurant...)
+├── utils/
+│   └── api.ts                    # Axios instance with JWT interceptor + 401 auto-redirect
+├── context/
+│   ├── AuthContext.tsx            # JWT auth state + login/logout + can() RBAC helper
+│   └── CartContext.tsx            # Cart state — add/remove items, total, count
+├── components/
+│   └── Navbar.tsx                 # Sticky nav — role-aware links, cart badge, user menu
+└── pages/
+    ├── LoginPage.tsx              # Quick-select users + permission matrix display
+    ├── DashboardPage.tsx          # Role info + permissions + quick actions
+    ├── RestaurantsPage.tsx        # Country-filtered grid (admin gets filter buttons)
+    ├── RestaurantDetailPage.tsx   # Menu by category + add/remove cart controls
+    ├── CartPage.tsx               # Order summary + payment selection + checkout
+    ├── OrdersPage.tsx             # Role-scoped order list + cancel button
+    └── PaymentsPage.tsx           # Admin-only — inline edit payment methods
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🔐 Frontend RBAC
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The `AuthContext` exposes a `can()` helper that mirrors the backend `PERMISSION_MAP`:
+
+```typescript
+const PERMISSION_MAP: Record<string, string[]> = {
+  view_restaurants: ['admin', 'manager', 'member'],
+  create_order:     ['admin', 'manager', 'member'],
+  place_order:      ['admin', 'manager'],
+  cancel_order:     ['admin', 'manager'],
+  update_payment:   ['admin'],
+};
+
+const can = (permission: string): boolean =>
+  PERMISSION_MAP[permission]?.includes(user?.role) ?? false;
 ```
+
+Used throughout the UI to conditionally render elements:
+
+```typescript
+{can('place_order') && <button>Checkout</button>}
+{can('cancel_order') && <button>Cancel Order</button>}
+{can('update_payment') && <Link to="/payments">Payments</Link>}
+```
+
+> ⚠️ Frontend checks are UX only — real security is always enforced by the backend guards.
+
+---
+
+## 🌐 API Communication
+
+All requests go through a central Axios instance at `src/utils/api.ts`:
+
+```typescript
+const api = axios.create({ baseURL: '/api' });
+
+// Auto-attach JWT to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Auto-logout on 401 (expired token)
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+```
+
+---
+
+## 🛒 Cart State
+
+CartContext handles cross-restaurant protection automatically:
+
+```typescript
+// Adding from a different restaurant resets the cart
+if (prev.restaurantId && prev.restaurantId !== restaurant.id) {
+  return { restaurantId: restaurant.id, restaurant, items: [{ ...item, quantity: 1 }] };
+}
+```
+
+`total` and `itemCount` are derived values — calculated fresh from `cart.items` on every render rather than stored as separate state. This prevents state sync bugs.
+
+---
+
+## 🚀 Running Locally
+
+```bash
+npm install
+npm run dev        # → http://localhost:3000
+npm run build      # production build → dist/
+npm run preview    # preview production build locally
+```
+
+---
+
+## 🌐 Deployment (Vercel)
+
+1. Connect GitHub repo to Vercel
+2. Set **Root Directory** to `frontend`
+3. Add environment variable:
+   ```
+   VITE_API_URL=https://your-railway-backend-url.railway.app
+   ```
+4. Vercel auto-detects Vite — build command is `npm run build`, output is `dist/`
+
+### Update `api.ts` for production
+
+```typescript
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : '/api',
+});
+```
+
+---
+
+## 📦 Key Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `react-router-dom` | Client-side routing — SPA navigation |
+| `axios` | HTTP client with interceptor support |
+| `react-hot-toast` | Toast notifications for success/error feedback |
+| `vite` | Build tool — near-instant hot reload via ES modules |
+
+---
+
+## 🎨 Design System
+
+CSS custom properties in `index.css` power the entire dark theme:
+
+```css
+:root {
+  --bg: #09090b;          /* Page background */
+  --accent: #f97316;      /* Orange — primary brand color */
+  --text: #fafafa;        /* Primary text */
+  --text-2: #a1a1aa;      /* Secondary text */
+  --green: #22c55e;       /* Success / allowed */
+  --red: #ef4444;         /* Error / denied */
+}
+```
+
+Role colors: Admin → Orange · Manager → Blue · Member → Green
