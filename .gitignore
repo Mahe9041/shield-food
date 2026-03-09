@@ -1,0 +1,30 @@
+cd shield-food  # make sure you're in the root
+touch .gitignore
+```
+
+Open it and add:
+```
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build output
+dist/
+build/
+*/dist/
+
+# Environment files — never commit secrets
+.env
+.env.local
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vite
+frontend/.vite/
