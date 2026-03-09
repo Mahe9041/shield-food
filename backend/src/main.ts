@@ -12,7 +12,9 @@ async function bootstrap() {
 
   // Allow React (port 3000) to call this API
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000', /\.vercel\.app$/, /\.up\.railway\.app$/],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 
