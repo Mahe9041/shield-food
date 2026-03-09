@@ -1,8 +1,12 @@
 import axios from "axios";
 
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "https://shield-food-production.up.railway.app/api";
+
 // Create a custom axios instance with our base config
 const api = axios.create({
-  baseURL: "/api", // Vite proxy will forward this to localhost:3001
+  baseURL: BASE, // Vite proxy will forward this to localhost:3001
 });
 
 // Request interceptor — runs before EVERY request we make
